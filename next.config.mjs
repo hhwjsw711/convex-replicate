@@ -5,7 +5,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: process.env.NEXT_PUBLIC_VERCEL_URL,
+        hostname: process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost',
         pathname: '/_next/image/**',
       },
     ],
