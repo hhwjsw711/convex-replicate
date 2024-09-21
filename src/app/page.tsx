@@ -7,6 +7,7 @@ import { useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Image from 'next/image';
 
 export default function Home() {
   const saveSketchMutation = useMutation(api.sketches.saveSketch);
@@ -66,11 +67,12 @@ export default function Home() {
           <h2>Recent Sketches</h2>
           <div className="grid grid-cols-4 gap-4">
             {sortedSketches.map((sketch) => (
-              <img
+              <Image
                 key={sketch._id}
-                width="256"
-                height="256"
-                src={sketch.result}
+                width={256}
+                height={256}
+                src={sketch.result || ''}
+                alt={`Sketch: ${sketch.prompt || 'No description'}`}
               />
             ))}
           </div>
