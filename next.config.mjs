@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['replicate.delivery'],
+    domains: ['replicate.delivery', 'aware-gnu-19.convex.cloud'],
     remotePatterns: [
       {
         protocol: 'https',
