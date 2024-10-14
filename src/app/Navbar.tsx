@@ -9,16 +9,19 @@ export function Navbar() {
   return (
     <div className="border-b py-4">
       <div className="container mx-auto flex justify-between">
-        <div>LOGO</div>
+        <Unauthenticated>
+          <Link href="/">LOGO</Link>
+        </Unauthenticated>
+        <Authenticated>
+          <div>LOGO</div>
+        </Authenticated>
         <nav className="flex gap-4">
           <Unauthenticated>
-            <Link href="/">Dashboard</Link>
             <Link href="/collection">Collection</Link>
           </Unauthenticated>
           <Authenticated>
-            <Link href="/generate/guided">Guided</Link>
-            <Link href="/stories">Stories</Link>
-            <Link href="/videos">Videos</Link>
+            <Link href="/generate">Make a Video</Link>
+            <Link href="/stories">Your Stories</Link>
           </Authenticated>
         </nav>
         <AuthLoading>

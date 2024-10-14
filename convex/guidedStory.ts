@@ -46,6 +46,7 @@ export const generateGuidedStoryMutation = mutation({
       userId: userId,
       script: "",
       status: "processing",
+      createdAt: new Date().toISOString() // 添加这一行
     });
 
     console.log("Created story with ID:", storyId);

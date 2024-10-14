@@ -15,6 +15,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as audio from "../audio.js";
 import type * as auth from "../auth.js";
 import type * as credits from "../credits.js";
 import type * as generate from "../generate.js";
@@ -24,6 +25,7 @@ import type * as replicate from "../replicate.js";
 import type * as segments from "../segments.js";
 import type * as sketches from "../sketches.js";
 import type * as story from "../story.js";
+import type * as videos from "../videos.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -34,6 +36,7 @@ import type * as story from "../story.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  audio: typeof audio;
   auth: typeof auth;
   credits: typeof credits;
   generate: typeof generate;
@@ -43,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   segments: typeof segments;
   sketches: typeof sketches;
   story: typeof story;
+  videos: typeof videos;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

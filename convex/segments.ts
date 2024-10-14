@@ -1,5 +1,11 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -45,37 +51,84 @@ export const generateSegmentImageReplicateInternal = internalAction({
     }),
   },
   handler: async (ctx, args) => {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        temperature: 1,
+        topP: 0.95,
+        topK: 64,
+        maxOutputTokens: 8192,
+      },
+    });
+
+    const systemInstruction = `
+You are a professional image prompt generator. Create a detailed image prompt based on the given context and text segment for an AI image generation system.
+
+Guidelines:
+1. Concise yet descriptive, 50-100 words.
+2. Focus on visual elements: scenes, characters, objects, colors, atmosphere.
+3. Use specific, vivid language; avoid abstract concepts.
+4. Exclude non-visual elements (sounds, smells, tactile sensations).
+5. Avoid proprietary names or copyrighted content.
+6. No inappropriate or offensive content.
+
+Return in JSON format: {"prompt": "your image prompt"}
+
+Context: ${args.context || "No context provided"}
+
+Generate an image prompt based on the above and the provided text segment.
+`.trim();
 
     try {
-      const result = await model.generateContent([
-        { text: getSystemPrompt(args.context) },
-        { text: args.segment.text }
-      ]);
-      
-      const response = result.response;
-      const text = response.text();
-      console.log("Gemini API response:", text);  // 添加日志
+      const chatSession = model.startChat({
+        history: [
+          {
+            role: "user",
+            parts: [{ text: systemInstruction }],
+          },
+        ],
+        generationConfig: {
+          temperature: 1,
+          topP: 0.95,
+          topK: 64,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const result = await chatSession.sendMessage(args.segment.text);
+      const responseText = result.response.text();
+      console.log("Raw Gemini response:", responseText);
 
       let prompt;
       try {
-        const parsedResponse = JSON.parse(text);
+        const parsedResponse = JSON.parse(responseText);
         prompt = parsedResponse.prompt;
       } catch (parseError) {
         console.error("Failed to parse Gemini response as JSON:", parseError);
-        // 如果无法解析为 JSON，直接使用返回的文本作为 prompt
-        prompt = text;
+        // 尝试提取 JSON 部分
+        const jsonMatch = responseText.match(/\{.*\}/s);
+        if (jsonMatch) {
+          const parsedResponse = JSON.parse(jsonMatch[0]);
+          prompt = parsedResponse.prompt;
+        } else {
+          throw new Error("Gemini returned an invalid JSON format");
+        }
       }
 
       if (!prompt) {
         throw new Error("Failed to generate prompt");
       }
 
+      console.log("Generated image prompt:", prompt);
+
       // 使用生成的提示来创建图像
-      await ctx.runAction(internal.replicate.regenerateSegmentImageUsingPrompt, {
-        segmentId: args.segment._id,
-        prompt,
-      });
+      await ctx.runAction(
+        internal.replicate.regenerateSegmentImageUsingPrompt,
+        {
+          segmentId: args.segment._id,
+          prompt,
+        }
+      );
 
       // 更新段落状态
       await ctx.runMutation(internal.segments.updateSegment, {
@@ -83,10 +136,9 @@ export const generateSegmentImageReplicateInternal = internalAction({
         isGenerating: false,
         prompt,
       });
-
     } catch (error) {
-      console.error("Error in generateSegmentImageReplicateInternal:", error);
-      
+      console.error("Error in generateSegmentImagePrompt:", error);
+
       // 更新段落状态，标记错误
       await ctx.runMutation(internal.segments.updateSegment, {
         segmentId: args.segment._id,
@@ -96,25 +148,6 @@ export const generateSegmentImageReplicateInternal = internalAction({
 
       throw error;
     }
-  },
-});
-
-function getSystemPrompt(context?: string): string {
-  return `Given the context: ${context || 'No context provided'}, generate a detailed image prompt for the following text. Return only the prompt, without any additional text or formatting.`;
-}
-
-export const getSegmentInternal = internalQuery({
-  args: { segmentId: v.id("segments") },
-  handler: async (ctx, args) => {
-    const { segmentId } = args;
-    
-    const segment = await ctx.db.get(segmentId);
-    
-    if (!segment) {
-      throw new Error(`Segment with id ${segmentId} not found`);
-    }
-    
-    return segment;
   },
 });
 
@@ -158,5 +191,75 @@ export const getFirstSegment = query({
       .order("asc")
       .first();
     return segment;
+  },
+});
+
+export const getSegmentInternal = internalQuery({
+  args: { segmentId: v.id("segments") },
+  handler: async (ctx, args) => {
+    const { segmentId } = args;
+
+    const segment = await ctx.db.get(segmentId);
+
+    if (!segment) {
+      throw new Error(`Segment with id ${segmentId} not found`);
+    }
+
+    return segment;
+  },
+});
+
+export const getSegments = query({
+  args: { storyId: v.id("story") },
+  handler: async (ctx, args) => {
+    const segments = await ctx.db
+      .query("segments")
+      .filter((q) => q.eq(q.field("storyId"), args.storyId))
+      .order("asc")
+      .collect();
+    return segments;
+  },
+});
+
+export const addSegment = mutation({
+  args: {
+    storyId: v.id("story"),
+    text: v.string(),
+    context: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { storyId, text, context } = args;
+
+    // 获取当前故事的所有段落
+    const existingSegments = await ctx.db
+      .query("segments")
+      .filter((q) => q.eq(q.field("storyId"), storyId))
+      .collect();
+
+    // 计算新段落的顺序
+    const newOrder = existingSegments.length;
+
+    // 创建新段落
+    const segmentId = await ctx.db.insert("segments", {
+      storyId,
+      text,
+      order: newOrder,
+      isGenerating: true,
+    });
+
+    // 触发图像生成过程
+    await ctx.scheduler.runAfter(
+      0,
+      internal.segments.generateSegmentImageReplicateInternal,
+      {
+        segment: {
+          text,
+          _id: segmentId,
+        },
+        context: context || "",
+      }
+    );
+
+    return segmentId;
   },
 });
