@@ -72,7 +72,7 @@ Guidelines:
 5. Avoid proprietary names or copyrighted content.
 6. No inappropriate or offensive content.
 
-Return in JSON format: {"prompt": "your image prompt"}
+IMPORTANT: Return ONLY the image prompt as plain text, without any JSON formatting or Markdown code blocks. Do not include any explanations or additional text.
 
 Context: ${args.context || "No context provided"}
 
@@ -96,29 +96,7 @@ Generate an image prompt based on the above and the provided text segment.
       });
 
       const result = await chatSession.sendMessage(args.segment.text);
-      const responseText = result.response.text();
-      console.log("Raw Gemini response:", responseText);
-
-      let prompt;
-      try {
-        const parsedResponse = JSON.parse(responseText);
-        prompt = parsedResponse.prompt;
-      } catch (parseError) {
-        console.error("Failed to parse Gemini response as JSON:", parseError);
-        // 尝试提取 JSON 部分
-        const jsonMatch = responseText.match(/\{.*\}/s);
-        if (jsonMatch) {
-          const parsedResponse = JSON.parse(jsonMatch[0]);
-          prompt = parsedResponse.prompt;
-        } else {
-          throw new Error("Gemini returned an invalid JSON format");
-        }
-      }
-
-      if (!prompt) {
-        throw new Error("Failed to generate prompt");
-      }
-
+      const prompt = result.response.text().trim();
       console.log("Generated image prompt:", prompt);
 
       // 使用生成的提示来创建图像

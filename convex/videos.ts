@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, query, mutation, ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
+import { auth } from "./auth";
 
 // 视频状态枚举
 const VideoStatus = {
@@ -433,5 +434,58 @@ export const getCaptions = query({
     }
 
     return await response.text();
+  },
+});
+
+export const queryUserStoryVideos = query({
+  handler: async (ctx) => {
+    console.log("Starting queryUserStoryVideos");
+    const userId = await auth.getUserId(ctx);
+    console.log("User ID from auth.getUserId:", userId);
+
+    if (userId === null) {
+      console.log("No user ID found");
+      throw new Error("Not authenticated");
+    }
+
+    // 获取用户的所有故事
+    const userStories = await ctx.db
+      .query("story")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .collect();
+
+    console.log("User stories:", userStories);
+
+    const storyIds = userStories.map(story => story._id);
+
+    if (storyIds.length === 0) {
+      console.log("No stories found for user");
+      return [];
+    }
+
+    // 获取与这些故事相关的所有视频
+    const videos = await ctx.db
+      .query("video")
+      .filter((q) => 
+        q.or(
+          ...storyIds.map(storyId => q.eq(q.field("storyId"), storyId))
+        )
+      )
+      .collect();
+
+    console.log("Videos found:", videos);
+
+    // 将故事信息添加到视频对象中
+    const videosWithStoryInfo = videos.map(video => {
+      const story = userStories.find(s => s._id === video.storyId);
+      return { 
+        ...video, 
+        storyTitle: story ? story.title : 'Unknown'
+      };
+    });
+
+    console.log("Videos with story info:", videosWithStoryInfo);
+
+    return videosWithStoryInfo;
   },
 });
