@@ -2,27 +2,24 @@
 
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Doc } from "../../../convex/_generated/dataModel";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// 定义 Video 类型
+type Video = Doc<"video"> & { storyTitle: string };
 
 export default function Videos() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const videos = useQuery(api.videos.queryUserStoryVideos);
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const videos = useQuery(api.videos.listUserVideos);
 
-  console.log("Authentication status:", { isAuthenticated, isLoading });
-  console.log("Videos:", videos);
+  if (authLoading) {
+    return <LoadingView />;
+  }
 
-  if (isLoading) {
-    return (
-      <div className="py-24 text-white min-h-screen">
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="flex justify-center items-center h-64">
-            <div className="text-2xl">Loading...</div>
-          </div>
-        </div>
-      </div>
-    );
+  if (!isAuthenticated) {
+    return <UnauthenticatedView />;
   }
 
   return (
@@ -31,11 +28,13 @@ export default function Videos() {
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold text-white font-dancing">Your Videos</h1>
         </div>
-        {!isAuthenticated ? (
-          <div>You need to be logged in to view your videos.</div>
+        {videos === undefined ? (
+          <LoadingView />
+        ) : videos.length === 0 ? (
+          <EmptyStateView />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {videos && videos.map((video) => (
+            {videos.map((video) => (
               <VideoCard key={video._id} video={video} />
             ))}
             <CreateVideoCard />
@@ -46,7 +45,46 @@ export default function Videos() {
   );
 }
 
-function VideoCard({ video }) {
+function LoadingView() {
+  return (
+    <div className="py-24 text-white min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-2xl">Loading...</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnauthenticatedView() {
+  return (
+    <div className="py-24 text-white min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">You need to be logged in to view your videos.</h2>
+          <Link href="/login">
+            <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+              Log In
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyStateView() {
+  return (
+    <div className="text-center">
+      <h2 className="text-2xl font-bold mb-4">You haven&apos;t created any videos yet.</h2>
+      <p className="mb-4">Get started by creating your first video!</p>
+      <CreateVideoCard />
+    </div>
+  );
+}
+
+function VideoCard({ video }: { video: Video }) {
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <div className="aspect-w-16 aspect-h-9">

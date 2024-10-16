@@ -8,22 +8,7 @@ import {
   interpolate,
   Sequence,
 } from "remotion";
-
-type VideoData = {
-  script: string;
-  isVertical: boolean;
-  audioUrl?: string;
-  transcriptionWords?: Array<{
-    text: string;
-    start: number;
-    end: number;
-  }>;
-  segments: Array<{
-    text: string;
-    imageUrl?: string; // 将 image 改为 imageUrl
-    order: number;
-  }>;
-};
+import { VideoData } from "../../../../convex/types";
 
 export const RemotionVideo: React.FC<{ videoData: VideoData; fps: number }> = ({
   videoData,
@@ -31,23 +16,21 @@ export const RemotionVideo: React.FC<{ videoData: VideoData; fps: number }> = ({
 }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const { audioUrl, segments, transcriptionWords } = videoData;
+  const { isVertical, audioUrl, transcriptionWords, segments } = videoData;
 
-  // 使用传入的 fps 计算 durationInFrames
   const calculatedDurationInFrames = useMemo(() => {
     if (!transcriptionWords || transcriptionWords.length === 0) {
-      return 0; // 或者设置一个默认的帧数
+      return 0;
     }
 
     const lastWord = transcriptionWords[transcriptionWords.length - 1];
     return Math.ceil((lastWord.end / 1000) * fps);
   }, [transcriptionWords, fps]);
 
-  // 使用计算得到的 durationInFrames，而不是从 useVideoConfig 获取的
   const effectiveDurationInFrames =
     calculatedDurationInFrames || durationInFrames;
 
-  const currentTime = (frame / fps) * 1000; // 将当前时间转换为毫秒
+  const currentTime = (frame / fps) * 1000;
 
   const currentSubtitle = useMemo(() => {
     if (!transcriptionWords) return "";
@@ -69,18 +52,11 @@ export const RemotionVideo: React.FC<{ videoData: VideoData; fps: number }> = ({
         const sequenceFrame = frame - segmentStart;
         const progress = sequenceFrame / segmentDuration;
 
-        // 简单的放大缩小效果
-        const scale = interpolate(
-          progress,
-          [0, 0.5, 1],
-          [1, 1.05, 1], // 最大放大到1.05倍，可以根据需要调整
-          {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }
-        );
+        const scale = interpolate(progress, [0, 0.5, 1], [1, 1.05, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        });
 
-        // 淡入淡出效果
         const opacity = interpolate(progress, [0, 0.1, 0.9, 1], [0, 1, 1, 0], {
           extrapolateLeft: "clamp",
           extrapolateRight: "clamp",
@@ -129,7 +105,7 @@ export const RemotionVideo: React.FC<{ videoData: VideoData; fps: number }> = ({
                     backgroundColor: "rgba(0, 0, 0, 0.8)",
                     color: "white",
                     padding: "20px",
-                    fontSize: "32px",
+                    fontSize: isVertical ? "24px" : "32px",
                     textAlign: "center",
                     lineHeight: "1.4",
                     fontWeight: "bold",

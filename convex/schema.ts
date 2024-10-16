@@ -56,6 +56,7 @@ export default defineSchema({
         })
       )
     ),
+    videoStorageId: v.optional(v.string()), // 新增字段
   }).index("by_story", ["storyId"]),
   segments: defineTable({
     storyId: v.id("story"),

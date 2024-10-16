@@ -25,6 +25,7 @@ import type * as replicate from "../replicate.js";
 import type * as segments from "../segments.js";
 import type * as sketches from "../sketches.js";
 import type * as story from "../story.js";
+import type * as types from "../types.js";
 import type * as videos from "../videos.js";
 
 /**
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   segments: typeof segments;
   sketches: typeof sketches;
   story: typeof story;
+  types: typeof types;
   videos: typeof videos;
 }>;
 export declare const api: FilterApi<

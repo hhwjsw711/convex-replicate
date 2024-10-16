@@ -749,31 +749,24 @@ export function VideoDialog({ isOpen, setIsOpen, storyId }: VideoDialogProps) {
     setIsPlaying(false);
   };
 
-  const generateVideoWithAudio = useAction(api.videos.generateVideoWithAudio);
+  const generateAudioAndTranscription = useAction(api.videos.generateAudioAndTranscription);
 
   const router = useRouter();
 
   const handleGenerateVideo = async () => {
     setIsGenerating(true);
     try {
-      await generateVideoWithAudio({
+      const result = await generateAudioAndTranscription({
         storyId,
         voiceId,
-        includeWatermark,
-        isPublic,
-        isLaxSpacing,
-        includeCaptions,
-        captionPosition,
-        highlightColor,
       });
       setIsOpen(false); // 关闭对话框
       // 重定向到视频生成进度页面
       router.push(`/videos/${storyId}`);
     } catch (error) {
-      console.error("Video generation failed:", error);
-      // 这里可以添加错误处理，比如显示一个错误消息
+      console.error("Audio generation failed:", error);
       toast({
-        title: "Video generation failed",
+        title: "Audio generation failed",
         description: "Please try again later.",
         variant: "destructive",
       });
