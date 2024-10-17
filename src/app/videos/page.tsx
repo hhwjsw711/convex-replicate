@@ -2,17 +2,35 @@
 
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import Link from 'next/link';
-import { Doc } from "../../../convex/_generated/dataModel";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { useState } from "react";
+import { VideoDoc, VideoStatus } from "../../../convex/types";
 
-// 定义 Video 类型
-type Video = Doc<"video"> & { storyTitle: string };
+// 更新 Video 类型定义
+type Video = Omit<VideoDoc, 'status'> & {
+  storyTitle: string;
+  status: string | VideoStatus;
+};
+
+// 更新：获取状态颜色的函数
+function getStatusColor(status: string | VideoStatus): string {
+  switch (status) {
+    case 'completed': return 'bg-green-500';
+    case 'processing': return 'bg-yellow-500';
+    case 'error': return 'bg-red-500';
+    default: return 'bg-gray-500';
+  }
+}
 
 export default function Videos() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const videos = useQuery(api.videos.listUserVideos);
+  const videos = useQuery(api.videos.listUserVideos) as Video[] | undefined;
+
+  // 新增：一次性获取所有预览图片 URL
+  const previewImageUrls = useQuery(api.segments.getAllPreviewImageUrls);
 
   if (authLoading) {
     return <LoadingView />;
@@ -28,14 +46,18 @@ export default function Videos() {
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold text-white font-dancing">Your Videos</h1>
         </div>
-        {videos === undefined ? (
+        {videos === undefined || previewImageUrls === undefined ? (
           <LoadingView />
         ) : videos.length === 0 ? (
           <EmptyStateView />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {videos.map((video) => (
-              <VideoCard key={video._id} video={video} />
+              <VideoCard 
+                key={video._id} 
+                video={video} 
+                previewImageUrl={previewImageUrls[video.storyId]}
+              />
             ))}
             <CreateVideoCard />
           </div>
@@ -64,9 +86,9 @@ function UnauthenticatedView() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">You need to be logged in to view your videos.</h2>
           <Link href="/login">
-            <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            <Button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
               Log In
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -84,30 +106,51 @@ function EmptyStateView() {
   );
 }
 
-function VideoCard({ video }: { video: Video }) {
+function VideoCard({ video, previewImageUrl }: { video: Video; previewImageUrl: string | null }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const status = video.status as VideoStatus;
+
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="aspect-w-16 aspect-h-9">
-        {video.status === "completed" && video.videoUrl ? (
+      <div className="w-full h-48 relative">
+        {status === "completed" && video.videoUrl ? (
           <video 
             src={video.videoUrl} 
             className="object-cover w-full h-full" 
             controls
             preload="metadata"
+            onLoadStart={() => setIsLoading(true)}
+            onLoadedData={() => setIsLoading(false)}
           />
         ) : (
-          <div className="flex items-center justify-center h-full bg-gray-200">
-            <span className="text-gray-500">
-              {video.status === "processing" ? "Video is processing" : "Video not available"}
-            </span>
-          </div>
+          <Image 
+            src={previewImageUrl || "/placeholder-image.png"}
+            alt="Video preview"
+            layout="fill"
+            objectFit="cover"
+            onLoadingComplete={() => setIsLoading(false)}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder-image.png";
+              setIsLoading(false);
+            }}
+          />
         )}
+        {isLoading && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs text-white ${getStatusColor(status)}`}>
+          {status}
+        </div>
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-lg mb-2 text-gray-800">{video.storyTitle || 'Unknown Title'}</h3>
-        <p className="text-sm text-gray-600 mb-4">Status: {video.status}</p>
+        <h3 className="font-semibold text-lg mb-2 text-gray-800">{video.storyTitle || 'Untitled Video'}</h3>
         <Link href={`/videos/${video.storyId}`}>
-          <Button variant="outline" className="w-full text-blue-500 border-blue-500 hover:bg-blue-50">View Details</Button>
+          <Button
+            variant="outline"
+            className="w-full text-blue-500 border-blue-500 hover:bg-blue-50"
+            aria-label={`View details for ${video.storyTitle}`}
+          >
+            View Details
+          </Button>
         </Link>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Id } from "./_generated/dataModel";
 
 const apiKey = process.env.GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -169,6 +170,30 @@ export const getFirstSegment = query({
       .order("asc")
       .first();
     return segment;
+  },
+});
+
+// 添加新的获取预览图片 URL 的函数
+export const getAllPreviewImageUrls = query({
+  args: {},
+  handler: async (ctx): Promise<Record<Id<"story">, string | null>> => {
+    const segments = await ctx.db
+      .query("segments")
+      .filter((q) => q.eq(q.field("order"), 0))
+      .collect();
+
+    const previewUrls: Record<Id<"story">, string | null> = {};
+    
+    for (const segment of segments) {
+      if (segment.image) {
+        const url = await ctx.storage.getUrl(segment.image);
+        previewUrls[segment.storyId] = url;
+      } else {
+        previewUrls[segment.storyId] = null;
+      }
+    }
+
+    return previewUrls;
   },
 });
 

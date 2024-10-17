@@ -4,25 +4,23 @@ import {RemotionVideo} from '@/app/videos/[storyId]/remotion-video';
 
 export const RemotionRoot: React.FC = () => {
   return (
-    <>
-      <Composition
-        id="VideoPlayer"
-        component={RemotionVideo}
-        durationInFrames={30 * 30} // 设置一个默认时长，例如30秒
-        fps={30}
-        width={1920}
-        height={1080}
-        defaultProps={{
-          videoData: {
-            script: "",
-            isVertical: false,
-            audioUrl: "",
-            transcriptionWords: [],
-            segments: [],
-          },
-          fps: 30
-        }}
-      />
-    </>
+    <Composition
+      id="RemotionVideo"
+      component={RemotionVideo}
+      durationInFrames={30 * 30} // 这个值会在实际渲染时被覆盖
+      fps={30}
+      width={1920}
+      height={1080}
+      defaultProps={{
+        videoData: {
+          script: "",
+          isVertical: false,
+          audioUrl: "",
+          transcriptionWords: [],
+          segments: [],
+        },
+        fps: 30
+      }}
+    />
   );
 };

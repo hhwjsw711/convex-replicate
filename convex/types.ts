@@ -1,7 +1,7 @@
 import { Doc, Id } from "./_generated/dataModel";
 
 // 视频状态类型
-export type VideoStatus = "pending" | "processing" | "completed" | "error" | "transcribing";
+export type VideoStatus = "pending" | "processing" | "completed" | "error" | "transcribing" | "preview";
 
 // 转录单词类型
 export type TranscriptionWord = {
